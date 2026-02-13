@@ -693,10 +693,118 @@ elif page == "📈 Analytics & Trends":
 # ==============================
 elif page == "🔍 Single Plot Comparison":
 
-    render_premium_header("Single Plot Compliance Comparison", "Compare reference vs current boundary with GeoJSON input", live=False)
+    render_premium_header("Single Plot Compliance Comparison", "Compare reference vs current boundary — supports GeoJSON and image upload", live=False)
 
-    reference_input = st.text_area("Paste Reference GeoJSON", height=150)
-    current_input = st.text_area("Paste Current GeoJSON", height=150)
+    # Image-to-GeoJSON conversion helper
+    def image_to_geojson(uploaded_file, center_lat, center_lng, scale_factor):
+        """Convert an uploaded PNG/JPG image to GeoJSON polygon using OpenCV contour detection."""
+        import cv2
+        file_bytes = np.frombuffer(uploaded_file.read(), dtype=np.uint8)
+        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        if img is None:
+            return None
+
+        # Convert to grayscale and threshold
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+        # Adaptive threshold for better edge detection
+        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # Find contours
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return None
+
+        # Get the largest contour
+        largest = max(contours, key=cv2.contourArea)
+
+        # Simplify the contour
+        epsilon = 0.01 * cv2.arcLength(largest, True)
+        approx = cv2.approxPolyDP(largest, epsilon, True)
+
+        # Get image dimensions for normalization
+        h, w = img.shape[:2]
+
+        # Convert pixel coordinates to geographic coordinates
+        # Scale: 1 pixel = scale_factor degrees
+        coords = []
+        for point in approx:
+            px, py = point[0]
+            lng = center_lng + (px - w / 2) * scale_factor
+            lat = center_lat - (py - h / 2) * scale_factor
+            coords.append([round(lng, 6), round(lat, 6)])
+
+        # Close the polygon
+        if coords[0] != coords[-1]:
+            coords.append(coords[0])
+
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [coords]
+        }
+        return geojson
+
+    # --- Dual Input Mode ---
+    input_tab1, input_tab2 = st.tabs(["📝 Paste GeoJSON", "🖼 Upload Image (PNG/JPG)"])
+
+    reference_geojson = None
+    current_geojson = None
+
+    with input_tab1:
+        st.markdown("<p style='color:#94a3b8; font-size:12px; margin-bottom:8px;'>Paste raw GeoJSON polygon data for each boundary</p>", unsafe_allow_html=True)
+        reference_input = st.text_area("Reference Boundary GeoJSON", height=150, key="ref_geo")
+        current_input = st.text_area("Current Boundary GeoJSON", height=150, key="cur_geo")
+        if reference_input and current_input:
+            try:
+                reference_geojson = json.loads(reference_input)
+                current_geojson = json.loads(current_input)
+            except json.JSONDecodeError:
+                st.error("❌ Invalid JSON format. Please paste valid GeoJSON.")
+
+    with input_tab2:
+        st.markdown("""
+        <div style="background:#1a1f35; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; margin-bottom:16px;">
+            <p style="color:#3b82f6; font-size:13px; font-weight:700; margin:0 0 6px 0;">🔄 Automatic Image → GeoJSON Conversion</p>
+            <p style="color:#94a3b8; font-size:12px; margin:0;">Upload a PNG/JPG image of a plot boundary. OpenCV will detect the boundary contour and convert it to GeoJSON polygon automatically.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        geo_col1, geo_col2, geo_col3 = st.columns(3)
+        with geo_col1:
+            center_lat = st.number_input("Center Latitude", value=21.2514, format="%.4f", key="img_lat")
+        with geo_col2:
+            center_lng = st.number_input("Center Longitude", value=81.6296, format="%.4f", key="img_lng")
+        with geo_col3:
+            scale = st.number_input("Scale (°/pixel)", value=0.000005, format="%.6f", key="img_scale",
+                                     help="Smaller = zoomed in. For satellite imagery at ~18 zoom, use 0.000005")
+
+        img_col1, img_col2 = st.columns(2)
+        with img_col1:
+            ref_image = st.file_uploader("📤 Reference Boundary Image", type=["png", "jpg", "jpeg"], key="ref_img")
+            if ref_image:
+                st.image(ref_image, caption="Reference Boundary", use_container_width=True)
+                ref_image.seek(0)
+                reference_geojson = image_to_geojson(ref_image, center_lat, center_lng, scale)
+                if reference_geojson:
+                    st.success(f"✅ Extracted {len(reference_geojson['coordinates'][0])} boundary points")
+                    with st.expander("View Generated GeoJSON"):
+                        st.json(reference_geojson)
+                else:
+                    st.error("❌ Could not detect boundary in image. Try a clearer image.")
+
+        with img_col2:
+            cur_image = st.file_uploader("📤 Current Boundary Image", type=["png", "jpg", "jpeg"], key="cur_img")
+            if cur_image:
+                st.image(cur_image, caption="Current Boundary", use_container_width=True)
+                cur_image.seek(0)
+                current_geojson = image_to_geojson(cur_image, center_lat, center_lng, scale)
+                if current_geojson:
+                    st.success(f"✅ Extracted {len(current_geojson['coordinates'][0])} boundary points")
+                    with st.expander("View Generated GeoJSON"):
+                        st.json(current_geojson)
+                else:
+                    st.error("❌ Could not detect boundary in image. Try a clearer image.")
 
     col_a, col_b = st.columns(2)
     with col_a:
@@ -706,8 +814,12 @@ elif page == "🔍 Single Plot Comparison":
 
     if st.button("🚀 Run Comparison"):
 
-        reference_boundary = json.loads(reference_input)
-        current_boundary = json.loads(current_input)
+        if not reference_geojson or not current_geojson:
+            st.error("❌ Please provide both reference and current boundaries — either paste GeoJSON or upload images.")
+            st.stop()
+
+        reference_boundary = reference_geojson
+        current_boundary = current_geojson
 
         compare_response = requests.post(
             f"{BACKEND_URL}/compare-boundaries",
