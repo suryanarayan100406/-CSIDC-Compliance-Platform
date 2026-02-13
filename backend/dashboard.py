@@ -35,7 +35,7 @@ if "plots_data" not in st.session_state:
 # Inject premium dark theme
 inject_premium_theme()
 
-# Matplotlib dark theme
+# Matplotlib dark theme - Professional Control Room Style
 plt.rcParams.update({
     'figure.facecolor': '#1a1f35',
     'axes.facecolor': '#1a1f35',
@@ -44,8 +44,12 @@ plt.rcParams.update({
     'text.color': '#f1f5f9',
     'xtick.color': '#94a3b8',
     'ytick.color': '#94a3b8',
-    'grid.color': '#1e293b',
+    'grid.color': '#0f1420',
+    'grid.alpha': 0.3,
     'figure.titlesize': 14,
+    'axes.labelsize': 11,
+    'axes.titlesize': 13,
+    'axes.titleweight': 'bold',
 })
 
 
@@ -78,47 +82,6 @@ def generate_pdf(report_data):
 
 
 # ==============================
-# Risk Score Gauge Helper
-# ==============================
-def render_risk_gauge(score):
-    """Render a color-coded risk score gauge."""
-    if score >= 80:
-        color = "#22c55e"  # green
-        label = "✅ LOW RISK"
-    elif score >= 50:
-        color = "#f59e0b"  # yellow/amber
-        label = "⚠️ MODERATE RISK"
-    else:
-        color = "#ef4444"  # red
-        label = "🚨 HIGH RISK"
-
-    st.markdown(f"""
-    <div style="
-        background: linear-gradient(135deg, #1e1e2f, #2d2d44);
-        border-radius: 12px; padding: 20px; margin: 10px 0;
-        border-left: 6px solid {color};
-    ">
-        <p style="color: #aaa; margin: 0 0 5px 0; font-size: 12px;">COMPLIANCE RISK SCORE</p>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <span style="font-size: 48px; font-weight: bold; color: {color};">{score}</span>
-            <span style="font-size: 14px; color: #aaa;">/100</span>
-        </div>
-        <div style="
-            background: #333; border-radius: 8px; height: 12px;
-            margin: 10px 0; overflow: hidden;
-        ">
-            <div style="
-                width: {score}%; height: 100%; border-radius: 8px;
-                background: {color};
-                transition: width 0.3s;
-            "></div>
-        </div>
-        <p style="color: {color}; font-weight: bold; margin: 0;">{label}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ==============================
 # Compute Risk Score (0-100) locally
 # ==============================
 def compute_risk_score(enc_area, unused_area, unused_pct):
@@ -133,7 +96,7 @@ def compute_risk_score(enc_area, unused_area, unused_pct):
 
 
 # ==============================
-# Alert Panel (Feature 5)
+# Alert Panel (Feature 5) - Control Room Style
 # ==============================
 def render_alert_panel():
     plots = st.session_state.plots_data
@@ -154,29 +117,77 @@ def render_alert_panel():
         highest_risk_plot = "N/A"
         highest_risk_score = "N/A"
 
-    bg_color = "#dc2626" if has_encroachment else "#16a34a"
-    border_color = "#fca5a5" if has_encroachment else "#86efac"
+    bg_gradient = "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)" if has_encroachment else "linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.1) 100%)"
+    border_color = "#ef4444" if has_encroachment else "#22c55e"
+    icon = "🚨" if has_encroachment else "✅"
 
     st.markdown(f"""
     <div style="
-        background: linear-gradient(135deg, {bg_color}22, {bg_color}11);
+        background: {bg_gradient};
         border: 2px solid {border_color};
-        border-radius: 12px; padding: 18px 24px; margin-bottom: 20px;
+        border-radius: 14px;
+        padding: 24px 28px;
+        margin-bottom: 28px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     ">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
             <div>
-                <p style="color: {border_color}; font-size: 11px; margin: 0; font-weight: 600; letter-spacing: 1px;">🚨 REAL-TIME ALERTS</p>
-                <p style="color: white; font-size: 24px; font-weight: bold; margin: 4px 0 0 0;">
-                    {critical_violations} Critical Violation{'s' if critical_violations != 1 else ''}
-                </p>
+                <p style="
+                    color: {border_color};
+                    font-size: 11px;
+                    margin: 0 0 8px 0;
+                    font-weight: 700;
+                    letter-spacing: 1.5px;
+                    text-transform: uppercase;
+                ">{icon} REAL-TIME COMPLIANCE ALERTS</p>
+                <p style="
+                    color: #f1f5f9;
+                    font-size: 32px;
+                    font-weight: 800;
+                    margin: 0;
+                    font-family: 'JetBrains Mono', monospace;
+                    letter-spacing: -0.5px;
+                ">{critical_violations} <span style="font-size: 18px; color: #94a3b8; font-weight: 600;">Critical Violation{'s' if critical_violations != 1 else ''}</span></p>
+            </div>
+            <div style="text-align: center; padding: 0 20px;">
+                <p style="
+                    color: #94a3b8;
+                    font-size: 11px;
+                    margin: 0 0 6px 0;
+                    font-weight: 600;
+                    letter-spacing: 1.2px;
+                    text-transform: uppercase;
+                ">REVENUE AT RISK</p>
+                <p style="
+                    color: #fbbf24;
+                    font-size: 28px;
+                    font-weight: 700;
+                    margin: 0;
+                    font-family: 'JetBrains Mono', monospace;
+                ">₹{total_revenue_risk:,.2f}</p>
             </div>
             <div style="text-align: center;">
-                <p style="color: #ccc; font-size: 11px; margin: 0;">REVENUE AT RISK</p>
-                <p style="color: #fbbf24; font-size: 22px; font-weight: bold; margin: 4px 0 0 0;">₹{total_revenue_risk:,.2f}</p>
-            </div>
-            <div style="text-align: center;">
-                <p style="color: #ccc; font-size: 11px; margin: 0;">HIGHEST RISK PLOT</p>
-                <p style="color: #f87171; font-size: 22px; font-weight: bold; margin: 4px 0 0 0;">{highest_risk_plot} ({highest_risk_score})</p>
+                <p style="
+                    color: #94a3b8;
+                    font-size: 11px;
+                    margin: 0 0 6px 0;
+                    font-weight: 600;
+                    letter-spacing: 1.2px;
+                    text-transform: uppercase;
+                ">HIGHEST RISK PLOT</p>
+                <p style="
+                    color: #ef4444;
+                    font-size: 28px;
+                    font-weight: 700;
+                    margin: 0;
+                    font-family: 'JetBrains Mono', monospace;
+                ">{highest_risk_plot}</p>
+                <p style="
+                    color: #f87171;
+                    font-size: 14px;
+                    margin: 4px 0 0 0;
+                    font-weight: 600;
+                ">Risk Score: {highest_risk_score}</p>
             </div>
         </div>
     </div>
@@ -184,7 +195,7 @@ def render_alert_panel():
 
 
 # ==============================
-# Executive Summary Generator (Feature 6)
+# Executive Summary Generator (Feature 6) - Enhanced
 # ==============================
 def render_executive_summary():
     plots = st.session_state.plots_data
@@ -204,12 +215,15 @@ def render_executive_summary():
     if compliance_rate >= 80:
         overall_status = "Healthy"
         status_icon = "🟢"
+        status_color = "#22c55e"
     elif compliance_rate >= 50:
         overall_status = "Moderate Concern"
         status_icon = "🟡"
+        status_color = "#f59e0b"
     else:
         overall_status = "Critical"
         status_icon = "🔴"
+        status_color = "#ef4444"
 
     summary_text = (
         f"Across **{total} monitored industrial plots**, the overall compliance status is "
@@ -232,16 +246,52 @@ def render_executive_summary():
 
     st.markdown(f"""
     <div style="
-        background: linear-gradient(135deg, #1e1e2f, #2d2d44);
-        border-radius: 12px; padding: 20px; margin: 10px 0;
-        border-left: 6px solid #8b5cf6;
+        background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 14px;
+        padding: 24px 28px;
+        margin: 20px 0;
+        border-left: 4px solid #8b5cf6;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
     ">
-        <p style="color: #a78bfa; font-size: 12px; font-weight: 600; letter-spacing: 1px; margin: 0 0 10px 0;">
-            🤖 AI EXECUTIVE SUMMARY
-        </p>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="
+                background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+            ">🤖</div>
+            <div>
+                <p style="
+                    color: #a78bfa;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 1.5px;
+                    margin: 0;
+                    text-transform: uppercase;
+                ">AI-POWERED EXECUTIVE SUMMARY</p>
+                <p style="
+                    color: #64748b;
+                    font-size: 12px;
+                    margin: 2px 0 0 0;
+                    font-weight: 500;
+                ">Generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            </div>
+        </div>
+        <div style="
+            color: #e2e8f0;
+            font-size: 14px;
+            line-height: 1.8;
+            font-weight: 500;
+        ">
+            {summary_text}
+        </div>
     </div>
     """, unsafe_allow_html=True)
-    st.markdown(summary_text)
 
 
 # ==============================
@@ -294,9 +344,40 @@ def generate_demo_plots(n=20):
 
 
 # ==============================
-# Sidebar Navigation
+# Sidebar Navigation - Control Room Style
 # ==============================
-st.sidebar.title("📌 CSIDC Compliance Platform")
+st.sidebar.markdown("""
+<div style="text-align: center; padding: 20px 0 10px 0;">
+    <div style="
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        width: 60px;
+        height: 60px;
+        border-radius: 14px;
+        margin: 0 auto 12px auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    ">📌</div>
+    <h2 style="
+        color: #f1f5f9;
+        font-size: 18px;
+        font-weight: 800;
+        margin: 0 0 4px 0;
+        letter-spacing: -0.3px;
+    ">CSIDC</h2>
+    <p style="
+        color: #64748b;
+        font-size: 11px;
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    ">Compliance Intelligence</p>
+</div>
+""", unsafe_allow_html=True)
+
 st.sidebar.markdown("---")
 
 # Feature 8: Role-Based Access
@@ -341,7 +422,32 @@ if st.sidebar.button("🗑 Clear All Data"):
     st.sidebar.success("✅ All data cleared!")
     st.rerun()
 
-st.sidebar.markdown(f"**Plots in memory:** {len(st.session_state.plots_data)}")
+st.sidebar.markdown(f"""
+<div style="
+    background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 20px;
+    text-align: center;
+">
+    <p style="
+        color: #64748b;
+        font-size: 10px;
+        margin: 0 0 4px 0;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    ">PLOTS IN MEMORY</p>
+    <p style="
+        color: #3b82f6;
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0;
+        font-family: 'JetBrains Mono', monospace;
+    ">{len(st.session_state.plots_data)}</p>
+</div>
+""", unsafe_allow_html=True)
 
 
 # ==============================
@@ -377,7 +483,7 @@ if page == "📊 Overview Dashboard":
         # Charts
         c1, c2 = st.columns(2)
         with c1:
-            fig, ax = plt.subplots(figsize=(5, 3))
+            fig, ax = plt.subplots(figsize=(6, 4))
             ax.bar(
                 ["Encroachments", "Underutilized", "Compliant"],
                 [
@@ -386,26 +492,38 @@ if page == "📊 Overview Dashboard":
                     compliant,
                 ],
                 color=["#ef4444", "#f59e0b", "#22c55e"],
+                edgecolor='#0a0e1a',
+                linewidth=2
             )
-            ax.set_title("Plot Distribution")
+            ax.set_title("Plot Distribution", fontweight='bold', pad=15)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.grid(axis='y', alpha=0.3)
             st.pyplot(fig)
 
         with c2:
             if "Risk Score" in df.columns:
-                fig2, ax2 = plt.subplots(figsize=(5, 3))
+                fig2, ax2 = plt.subplots(figsize=(6, 4))
                 risk_bins = [
                     len(df[df["Risk Score"] >= 80]),
                     len(df[(df["Risk Score"] >= 50) & (df["Risk Score"] < 80)]),
                     len(df[df["Risk Score"] < 50]),
                 ]
-                ax2.pie(
+                wedges, texts, autotexts = ax2.pie(
                     risk_bins,
                     labels=["Low Risk (80+)", "Moderate (50-79)", "High Risk (<50)"],
                     colors=["#22c55e", "#f59e0b", "#ef4444"],
                     autopct="%1.1f%%",
                     startangle=90,
+                    wedgeprops=dict(edgecolor='#0a0e1a', linewidth=2)
                 )
-                ax2.set_title("Risk Score Distribution")
+                for text in texts:
+                    text.set_color('#94a3b8')
+                    text.set_fontsize(10)
+                for autotext in autotexts:
+                    autotext.set_color('#f1f5f9')
+                    autotext.set_fontweight('bold')
+                ax2.set_title("Risk Score Distribution", fontweight='bold', pad=15)
                 st.pyplot(fig2)
 
         st.markdown("---")
@@ -462,10 +580,40 @@ elif page == "🗺 Multi-Plot Monitoring":
 
     st_folium(st.session_state.multi_map, width=1000, height=600)
 
-    # Legend
+    # Legend - Styled
     st.markdown("""
-    **Legend:** 🔴 Encroachment &nbsp;&nbsp; 🟠 Underutilized &nbsp;&nbsp; 🟢 Compliant
-    """)
+    <div style="
+        background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 16px 24px;
+        margin-top: 20px;
+        display: inline-block;
+    ">
+        <p style="
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            margin: 0 0 12px 0;
+        ">MAP LEGEND</p>
+        <div style="display: flex; gap: 24px; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 16px; height: 16px; background: #ef4444; border-radius: 50%;"></div>
+                <span style="color: #e2e8f0; font-size: 13px; font-weight: 500;">Encroachment</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 16px; height: 16px; background: #f59e0b; border-radius: 50%;"></div>
+                <span style="color: #e2e8f0; font-size: 13px; font-weight: 500;">Underutilized</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 16px; height: 16px; background: #22c55e; border-radius: 50%;"></div>
+                <span style="color: #e2e8f0; font-size: 13px; font-weight: 500;">Compliant</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ==============================
@@ -486,7 +634,7 @@ elif page == "📈 Analytics & Trends":
         c1, c2 = st.columns(2)
 
         with c1:
-            fig, ax = plt.subplots(figsize=(5, 3.5))
+            fig, ax = plt.subplots(figsize=(6, 4.5))
             enc_count = len(df[df["Encroached Area"] > 0])
             unused_count = len(df[(df["Unused Area"] > 0) & (df["Encroached Area"] == 0)])
             comp_count = len(df) - enc_count - unused_count
@@ -494,23 +642,41 @@ elif page == "📈 Analytics & Trends":
                 ["Compliant", "Encroached", "Underutilized"],
                 [comp_count, enc_count, unused_count],
                 color=["#22c55e", "#ef4444", "#f59e0b"],
+                edgecolor='#0a0e1a',
+                linewidth=2
             )
-            ax.set_title("Compliance Breakdown")
+            ax.set_title("Compliance Breakdown", fontweight='bold', pad=15)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.grid(axis='y', alpha=0.3)
             st.pyplot(fig)
 
         with c2:
             if "Risk Score" in df.columns:
-                fig2, ax2 = plt.subplots(figsize=(5, 3.5))
-                ax2.hist(df["Risk Score"], bins=10, color="#6366f1", edgecolor="#333")
-                ax2.set_xlabel("Risk Score")
-                ax2.set_ylabel("# Plots")
-                ax2.set_title("Risk Score Distribution")
+                fig2, ax2 = plt.subplots(figsize=(6, 4.5))
+                ax2.hist(df["Risk Score"], bins=10, color="#6366f1", edgecolor="#0a0e1a", linewidth=1.5)
+                ax2.set_xlabel("Risk Score", fontweight='bold')
+                ax2.set_ylabel("# Plots", fontweight='bold')
+                ax2.set_title("Risk Score Distribution", fontweight='bold', pad=15)
+                ax2.spines['top'].set_visible(False)
+                ax2.spines['right'].set_visible(False)
+                ax2.grid(axis='y', alpha=0.3)
                 st.pyplot(fig2)
 
         st.markdown("---")
 
         # Revenue analysis
-        st.subheader("💰 Revenue Impact Analysis")
+        st.markdown("""
+        <p style="
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin: 24px 0 16px 0;
+        ">💰 REVENUE IMPACT ANALYSIS</p>
+        """, unsafe_allow_html=True)
+        
         rev_c1, rev_c2, rev_c3 = st.columns(3)
         rev_c1.metric("Total Recovery (₹)", f"{df['Revenue Recovery'].sum():,.2f}")
         rev_c2.metric("Total Loss (₹)", f"{df['Revenue Loss'].sum():,.2f}")
@@ -563,7 +729,31 @@ elif page == "🔍 Single Plot Comparison":
 
         # Feature 1: Tolerance Threshold Display
         if tolerance_applied:
-            st.info("⚖ **Tolerance (25 m²) applied** — Minor deviations below 25 m² treated as zero. Plot classified as compliant within tolerance.")
+            st.markdown("""
+            <div style="
+                background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.1) 100%);
+                border: 1px solid #22c55e;
+                border-left: 4px solid #22c55e;
+                border-radius: 12px;
+                padding: 16px 20px;
+                margin: 20px 0;
+            ">
+                <p style="
+                    color: #22c55e;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 1.2px;
+                    text-transform: uppercase;
+                    margin: 0 0 8px 0;
+                ">⚖ TOLERANCE APPLIED</p>
+                <p style="
+                    color: #e2e8f0;
+                    font-size: 14px;
+                    margin: 0;
+                    line-height: 1.6;
+                ">Tolerance (25 m²) applied — Minor deviations below 25 m² treated as zero. Plot classified as compliant within tolerance.</p>
+            </div>
+            """, unsafe_allow_html=True)
 
         # Metrics
         m1, m2 = st.columns(2)
@@ -653,7 +843,33 @@ elif page == "📋 Inspection History":
         )
 
         st.markdown("---")
-        st.markdown(f"**Total Inspections:** {len(df)}")
+        
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin: 20px 0;
+            display: inline-block;
+        ">
+            <p style="
+                color: #94a3b8;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 1.2px;
+                text-transform: uppercase;
+                margin: 0 0 6px 0;
+            ">TOTAL INSPECTIONS</p>
+            <p style="
+                color: #3b82f6;
+                font-size: 28px;
+                font-weight: 700;
+                margin: 0;
+                font-family: 'JetBrains Mono', monospace;
+            ">{len(df)}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Export
         csv = df[available_cols].to_csv(index=False)
@@ -673,11 +889,16 @@ elif page == "🏗 System Architecture":
     render_premium_header("System Architecture", "Platform component diagram and API endpoint reference", live=False)
 
     st.markdown("""
-    ### Deployment Architecture — CSIDC Industrial Compliance Intelligence Platform
-
+    <p style="
+        color: #e2e8f0;
+        font-size: 15px;
+        line-height: 1.7;
+        margin: 0 0 32px 0;
+    ">
     This platform is built on a modular, scalable architecture designed for
     real-time compliance monitoring of industrial land parcels across Chhattisgarh.
-    """)
+    </p>
+    """, unsafe_allow_html=True)
 
     # Architecture components using columns
     arch1, arch2 = st.columns(2)
@@ -685,12 +906,21 @@ elif page == "🏗 System Architecture":
     with arch1:
         st.markdown("""
         <div style="
-            background: linear-gradient(135deg, #1e1e2f, #2d2d44);
-            border-radius: 12px; padding: 20px; margin: 8px 0;
-            border-left: 6px solid #3b82f6;
+            background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 24px;
+            margin: 0 0 16px 0;
+            border-left: 4px solid #3b82f6;
         ">
-            <h4 style="color: #60a5fa; margin: 0 0 10px 0;">🖥 Frontend — Streamlit</h4>
-            <ul style="color: #ccc; font-size: 14px;">
+            <h4 style="
+                color: #60a5fa;
+                margin: 0 0 16px 0;
+                font-size: 16px;
+                font-weight: 700;
+                letter-spacing: -0.2px;
+            ">🖥 Frontend — Streamlit</h4>
+            <ul style="color: #cbd5e1; font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
                 <li>Interactive dashboards & real-time analytics</li>
                 <li>Role-based access control (Inspector/Admin)</li>
                 <li>PDF report generation & CSV export</li>
@@ -701,12 +931,21 @@ elif page == "🏗 System Architecture":
 
         st.markdown("""
         <div style="
-            background: linear-gradient(135deg, #1e1e2f, #2d2d44);
-            border-radius: 12px; padding: 20px; margin: 8px 0;
-            border-left: 6px solid #22c55e;
+            background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 24px;
+            margin: 0;
+            border-left: 4px solid #22c55e;
         ">
-            <h4 style="color: #4ade80; margin: 0 0 10px 0;">🌍 GIS Engine — Shapely + PyProj</h4>
-            <ul style="color: #ccc; font-size: 14px;">
+            <h4 style="
+                color: #4ade80;
+                margin: 0 0 16px 0;
+                font-size: 16px;
+                font-weight: 700;
+                letter-spacing: -0.2px;
+            ">🌍 GIS Engine — Shapely + PyProj</h4>
+            <ul style="color: #cbd5e1; font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
                 <li>Polygon intersection & difference operations</li>
                 <li>UTM projection for accurate area calculation</li>
                 <li>Boundary comparison with tolerance thresholds</li>
@@ -718,12 +957,21 @@ elif page == "🏗 System Architecture":
     with arch2:
         st.markdown("""
         <div style="
-            background: linear-gradient(135deg, #1e1e2f, #2d2d44);
-            border-radius: 12px; padding: 20px; margin: 8px 0;
-            border-left: 6px solid #f59e0b;
+            background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 24px;
+            margin: 0 0 16px 0;
+            border-left: 4px solid #f59e0b;
         ">
-            <h4 style="color: #fbbf24; margin: 0 0 10px 0;">⚙ Backend — Flask REST API</h4>
-            <ul style="color: #ccc; font-size: 14px;">
+            <h4 style="
+                color: #fbbf24;
+                margin: 0 0 16px 0;
+                font-size: 16px;
+                font-weight: 700;
+                letter-spacing: -0.2px;
+            ">⚙ Backend — Flask REST API</h4>
+            <ul style="color: #cbd5e1; font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
                 <li>RESTful endpoints for all GIS operations</li>
                 <li>Compliance scoring engine (0–100)</li>
                 <li>Legal risk classification & recommendation</li>
@@ -734,12 +982,21 @@ elif page == "🏗 System Architecture":
 
         st.markdown("""
         <div style="
-            background: linear-gradient(135deg, #1e1e2f, #2d2d44);
-            border-radius: 12px; padding: 20px; margin: 8px 0;
-            border-left: 6px solid #8b5cf6;
+            background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 24px;
+            margin: 0;
+            border-left: 4px solid #8b5cf6;
         ">
-            <h4 style="color: #a78bfa; margin: 0 0 10px 0;">🛰 Satellite Visualization — Folium</h4>
-            <ul style="color: #ccc; font-size: 14px;">
+            <h4 style="
+                color: #a78bfa;
+                margin: 0 0 16px 0;
+                font-size: 16px;
+                font-weight: 700;
+                letter-spacing: -0.2px;
+            ">🛰 Satellite Visualization — Folium</h4>
+            <ul style="color: #cbd5e1; font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
                 <li>ESRI World Imagery satellite tiles</li>
                 <li>Color-coded plot markers (Red/Yellow/Green)</li>
                 <li>Interactive popups with compliance details</li>
@@ -751,35 +1008,84 @@ elif page == "🏗 System Architecture":
     st.markdown("---")
 
     # Flow diagram using Streamlit layout
-    st.subheader("📐 Data Flow Diagram")
+    st.markdown("""
+    <p style="
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin: 32px 0 20px 0;
+    ">📐 DATA FLOW DIAGRAM</p>
+    """, unsafe_allow_html=True)
 
     st.markdown("""
     <div style="
-        background: #1a1a2e; border-radius: 12px; padding: 30px;
-        text-align: center; font-family: monospace;
+        background: #0f1420;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 14px;
+        padding: 32px;
+        text-align: center;
+        font-family: monospace;
     ">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
-            <div style="background: #3b82f6; padding: 12px 20px; border-radius: 8px; color: white; font-weight: bold;">
-                📄 GeoJSON Input
-            </div>
-            <span style="color: #666; font-size: 24px;">→</span>
-            <div style="background: #f59e0b; padding: 12px 20px; border-radius: 8px; color: white; font-weight: bold;">
-                ⚙ Flask API
-            </div>
-            <span style="color: #666; font-size: 24px;">→</span>
-            <div style="background: #22c55e; padding: 12px 20px; border-radius: 8px; color: white; font-weight: bold;">
-                🌍 Shapely/PyProj
-            </div>
-            <span style="color: #666; font-size: 24px;">→</span>
-            <div style="background: #8b5cf6; padding: 12px 20px; border-radius: 8px; color: white; font-weight: bold;">
-                📊 Compliance Score
-            </div>
-            <span style="color: #666; font-size: 24px;">→</span>
-            <div style="background: #ef4444; padding: 12px 20px; border-radius: 8px; color: white; font-weight: bold;">
-                🖥 Streamlit Dashboard
-            </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
+            <div style="
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                padding: 14px 22px;
+                border-radius: 10px;
+                color: white;
+                font-weight: bold;
+                font-size: 13px;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            ">📄 GeoJSON Input</div>
+            <span style="color: #475569; font-size: 28px; font-weight: bold;">→</span>
+            <div style="
+                background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                padding: 14px 22px;
+                border-radius: 10px;
+                color: white;
+                font-weight: bold;
+                font-size: 13px;
+                box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            ">⚙ Flask API</div>
+            <span style="color: #475569; font-size: 28px; font-weight: bold;">→</span>
+            <div style="
+                background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+                padding: 14px 22px;
+                border-radius: 10px;
+                color: white;
+                font-weight: bold;
+                font-size: 13px;
+                box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+            ">🌍 Shapely/PyProj</div>
+            <span style="color: #475569; font-size: 28px; font-weight: bold;">→</span>
+            <div style="
+                background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+                padding: 14px 22px;
+                border-radius: 10px;
+                color: white;
+                font-weight: bold;
+                font-size: 13px;
+                box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+            ">📊 Compliance Score</div>
+            <span style="color: #475569; font-size: 28px; font-weight: bold;">→</span>
+            <div style="
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                padding: 14px 22px;
+                border-radius: 10px;
+                color: white;
+                font-weight: bold;
+                font-size: 13px;
+                box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            ">🖥 Streamlit Dashboard</div>
         </div>
-        <div style="margin-top: 20px; color: #888; font-size: 12px;">
+        <div style="
+            margin-top: 24px;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.6;
+            font-family: 'Inter', sans-serif;
+        ">
             GeoJSON → Boundary Comparison → Area Calculation → Risk Scoring → Visualization & Reporting
         </div>
     </div>
@@ -788,7 +1094,17 @@ elif page == "🏗 System Architecture":
     st.markdown("---")
 
     # API endpoints table
-    st.subheader("🔌 API Endpoints")
+    st.markdown("""
+    <p style="
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin: 32px 0 20px 0;
+    ">🔌 API ENDPOINTS</p>
+    """, unsafe_allow_html=True)
+    
     api_df = pd.DataFrame([
         {"Endpoint": "/compare-boundaries", "Method": "POST", "Description": "Compare reference vs current boundary with tolerance"},
         {"Endpoint": "/detect-builtup", "Method": "POST", "Description": "Detect built-up area within a boundary"},
