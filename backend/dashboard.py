@@ -841,25 +841,83 @@ elif page == "🔍 Single Plot Comparison":
     st.markdown("""
     <div style="background:#1a1f35; border:1px solid rgba(59,130,246,0.2); border-left:4px solid #3b82f6; border-radius:12px; padding:16px; margin-bottom:16px;">
         <p style="color:#3b82f6; font-size:13px; font-weight:700; margin:0 0 6px 0;">📋 STEP 1 — Reference Boundary (Government Records)</p>
-        <p style="color:#94a3b8; font-size:12px; margin:0;">The allotted boundary is pre-loaded from CSIDC industrial area registry. Select the plot or paste custom GeoJSON.</p>
+        <p style="color:#94a3b8; font-size:12px; margin:0;">Select from CSIDC registry, draw on map, or paste custom GeoJSON.</p>
     </div>
     """, unsafe_allow_html=True)
 
-    selected_plot = st.selectbox("📌 Select Allotted Plot from CSIDC Registry", list(CSIDC_PLOT_REGISTRY.keys()))
+    ref_method = st.radio("Choose reference source:", [
+        "📌 CSIDC Registry (Pre-loaded)",
+        "📍 Draw on Map",
+        "📝 Paste GeoJSON manually"
+    ], horizontal=True, key="ref_method")
 
     reference_geojson = None
-    if selected_plot == "Custom — Paste GeoJSON manually":
+
+    if ref_method == "📌 CSIDC Registry (Pre-loaded)":
+        selected_plot = st.selectbox("Select Allotted Plot", [k for k in CSIDC_PLOT_REGISTRY.keys() if k != "Custom — Paste GeoJSON manually"])
+        reference_geojson = CSIDC_PLOT_REGISTRY[selected_plot]
+        st.success(f"✅ Reference boundary loaded — {selected_plot}")
+        with st.expander("View Reference GeoJSON"):
+            st.json(reference_geojson)
+
+    elif ref_method == "📍 Draw on Map":
+        st.markdown("""
+        <div style="background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.15); border-radius:10px; padding:12px; margin-bottom:12px;">
+            <p style="color:#22c55e; font-size:12px; margin:0;">🖊 Draw a polygon on the map below to define the reference boundary. Use the polygon tool on the left toolbar, click points to draw, and double-click to finish.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Create folium map with satellite tiles and draw control
+        draw_map = folium.Map(location=[21.2514, 81.6296], zoom_start=13, tiles=None)
+        folium.TileLayer(
+            tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            attr="Esri Satellite",
+            name="Satellite"
+        ).add_to(draw_map)
+        folium.TileLayer(
+            tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            attr="OpenStreetMap",
+            name="Street Map"
+        ).add_to(draw_map)
+        folium.LayerControl().add_to(draw_map)
+
+        from folium.plugins import Draw
+        Draw(
+            draw_options={
+                "polyline": False,
+                "rectangle": True,
+                "polygon": True,
+                "circle": False,
+                "marker": False,
+                "circlemarker": False,
+            },
+            edit_options={"edit": True, "remove": True},
+        ).add_to(draw_map)
+
+        map_data = st_folium(draw_map, width=None, height=450, key="ref_draw_map")
+
+        # Extract drawn geometry
+        if map_data and map_data.get("all_drawings"):
+            drawings = map_data["all_drawings"]
+            if len(drawings) > 0:
+                last_drawing = drawings[-1]
+                if last_drawing.get("geometry"):
+                    reference_geojson = last_drawing["geometry"]
+                    st.success(f"✅ Boundary drawn — {len(reference_geojson.get('coordinates', [[]])[0])} points captured")
+                    with st.expander("View Drawn GeoJSON"):
+                        st.json(reference_geojson)
+            else:
+                st.info("Draw a polygon on the map to define the reference boundary.")
+        else:
+            st.info("👆 Use the polygon/rectangle tool on the map to draw the reference boundary.")
+
+    elif ref_method == "📝 Paste GeoJSON manually":
         reference_input = st.text_area("Paste Reference Boundary GeoJSON", height=120, key="ref_geo")
         if reference_input:
             try:
                 reference_geojson = json.loads(reference_input)
             except json.JSONDecodeError:
                 st.error("❌ Invalid JSON format.")
-    else:
-        reference_geojson = CSIDC_PLOT_REGISTRY[selected_plot]
-        st.success(f"✅ Reference boundary loaded — {selected_plot}")
-        with st.expander("View Reference GeoJSON"):
-            st.json(reference_geojson)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
