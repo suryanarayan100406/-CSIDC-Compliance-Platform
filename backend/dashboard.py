@@ -311,8 +311,8 @@ def generate_demo_plots(n=20):
             enc = 0
             unused = round(random.uniform(100, 800), 2)
 
-        land_rate = random.choice([1500, 2000, 2500, 3000])
-        lease_rate = random.choice([100, 150, 200])
+        land_rate = random.choice([200, 300, 350, 500])
+        lease_rate = random.choice([30, 50, 80])
         penalty = round(enc * land_rate, 2)
         loss = round(unused * lease_rate, 2)
 
@@ -1049,6 +1049,25 @@ elif page == "🔍 Single Plot Comparison":
         unused = compare_data["unused_area"]
         unused_pct = compare_data.get("unused_percentage", 0)
         tolerance_applied = compare_data.get("tolerance_applied", False)
+        overlap_area = compare_data.get("overlap_area", 0)
+        ref_area_m2 = compare_data.get("total_reference_area", 1)
+
+        # Check if boundaries actually overlap
+        overlap_pct = round((overlap_area / ref_area_m2) * 100, 1) if ref_area_m2 > 0 else 0
+        if overlap_pct < 10:
+            st.warning(f"""⚠️ **Low Overlap Detected ({overlap_pct}%)**
+            
+The reference and current boundaries barely overlap. This usually means:
+- The current boundary was drawn at a **different location** from the reference plot
+- Or the boundaries are **very different in size**
+
+For accurate results, make sure both boundaries cover roughly the **same area**.""")
+
+        # Show boundary areas for transparency
+        area_c1, area_c2, area_c3 = st.columns(3)
+        area_c1.metric("Reference Area (m²)", f"{round(ref_area_m2, 1):,}")
+        area_c2.metric("Overlap Area (m²)", f"{round(overlap_area, 1):,}")
+        area_c3.metric("Overlap %", f"{overlap_pct}%")
 
         penalty = enc * land_rate
         loss = unused * lease_rate
