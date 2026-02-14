@@ -549,46 +549,73 @@ elif page == "🗺 Multi-Plot Monitoring":
 
     render_premium_header("Multi-Plot Monitoring Map", "Satellite view of all monitored industrial plots")
 
-    if "multi_map" not in st.session_state:
+    if len(st.session_state.plots_data) == 0:
+        st.info("No plots available on the map. Run Single Plot Comparison first to add data.")
+    else:
+        multi_map = folium.Map(location=[21.25, 81.63], zoom_start=12, tiles=None)
+        folium.TileLayer(
+            tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            attr="Esri Satellite", name="Satellite"
+        ).add_to(multi_map)
 
-        multi_map = folium.Map(
-            location=[21.25, 81.63],
-            zoom_start=12,
-            tiles="Esri.WorldImagery"
-        )
+        all_lats = []
+        all_lngs = []
 
-        if len(st.session_state.plots_data) == 0:
-            st.info("No plots available on the map. Run Single Plot Comparison or generate demo data.")
-        else:
-            for i, plot in enumerate(st.session_state.plots_data):
-                lat = plot.get("Lat", 21.25 + random.uniform(-0.03, 0.03))
-                lon = plot.get("Lon", 81.63 + random.uniform(-0.03, 0.03))
+        for i, plot in enumerate(st.session_state.plots_data):
+            lat = plot.get("Lat", 21.25 + random.uniform(-0.03, 0.03))
+            lon = plot.get("Lon", 81.63 + random.uniform(-0.03, 0.03))
 
-                if plot["Encroached Area"] > 0:
-                    color = "red"
-                    status = "Encroachment"
-                elif plot["Unused Area"] > 0:
-                    color = "orange"
-                    status = "Underutilized"
-                else:
-                    color = "green"
-                    status = "Compliant"
+            if plot["Encroached Area"] > 0:
+                fill_color = "#ef4444"
+                border_color = "#ef4444"
+                status = "Encroachment"
+            elif plot["Unused Area"] > 0:
+                fill_color = "#f59e0b"
+                border_color = "#f59e0b"
+                status = "Underutilized"
+            else:
+                fill_color = "#22c55e"
+                border_color = "#22c55e"
+                status = "Compliant"
 
-                risk_label = plot.get("Risk Score", "N/A")
+            risk_label = plot.get("Risk Score", "N/A")
+            popup_html = f"<b>{plot['Plot ID']}</b><br>Status: {status}<br>Risk: {risk_label}/100<br>Enc: {plot['Encroached Area']} m²<br>Recovery: ₹{plot.get('Revenue Recovery', 0):,.0f}"
 
+            # Draw polygon boundary if reference GeoJSON is stored
+            ref_geo = plot.get("reference_geojson")
+            if ref_geo:
+                folium.GeoJson(
+                    {"type": "Feature", "geometry": ref_geo, "properties": {}},
+                    style_function=lambda x, fc=fill_color, bc=border_color: {
+                        "fillColor": fc, "color": bc,
+                        "weight": 2.5, "fillOpacity": 0.35
+                    },
+                    tooltip=f"{plot['Plot ID']} — {status}",
+                    popup=folium.Popup(popup_html, max_width=250)
+                ).add_to(multi_map)
+                coords = ref_geo.get("coordinates", [[]])
+                if coords and coords[0]:
+                    for c in coords[0]:
+                        all_lats.append(c[1]); all_lngs.append(c[0])
+            else:
+                # Fallback: circle marker
                 folium.CircleMarker(
                     location=[lat, lon],
-                    radius=8,
-                    color=color,
+                    radius=10,
+                    color=border_color,
                     fill=True,
-                    fill_color=color,
-                    fill_opacity=0.7,
-                    popup=f"<b>{plot['Plot ID']}</b><br>Status: {status}<br>Risk: {risk_label}/100"
+                    fill_color=fill_color,
+                    fill_opacity=0.6,
+                    tooltip=f"{plot['Plot ID']} — {status}",
+                    popup=folium.Popup(popup_html, max_width=250)
                 ).add_to(multi_map)
+                all_lats.append(lat); all_lngs.append(lon)
 
-        st.session_state.multi_map = multi_map
+        # Auto-zoom to fit all plots
+        if all_lats and all_lngs:
+            multi_map.fit_bounds([[min(all_lats), min(all_lngs)], [max(all_lats), max(all_lngs)]])
 
-    st_folium(st.session_state.multi_map, width=1000, height=600)
+        st_folium(multi_map, width=None, height=600, key="multi_plot_map")
 
     # Legend - Styled
     st.markdown("""
@@ -1061,115 +1088,6 @@ elif page == "🔍 Single Plot Comparison":
         risk_score = compute_risk_score(enc, unused, unused_pct)
         render_plotly_gauge(risk_score)
 
-        # ─── Satellite Boundary Overlay Map ───
-        st.markdown("""
-        <div style="background:#1a1f35; border:1px solid rgba(59,130,246,0.2); border-left:4px solid #3b82f6; border-radius:12px; padding:16px; margin:20px 0 12px 0;">
-            <p style="color:#3b82f6; font-size:13px; font-weight:700; margin:0 0 4px 0;">🛰 BOUNDARY ANALYSIS — Satellite Overlay</p>
-            <p style="color:#94a3b8; font-size:12px; margin:0;">Visual comparison of reference vs current boundaries on satellite imagery</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Build overlay map
-        overlay_map = folium.Map(location=[21.25, 81.63], zoom_start=16, tiles=None)
-        folium.TileLayer(
-            tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            attr="Esri Satellite", name="Satellite"
-        ).add_to(overlay_map)
-
-        # Helper to swap coords from [lng, lat] to [lat, lng] for Folium
-        def geojson_to_folium_coords(geojson_geom):
-            coords = geojson_geom.get("coordinates", [[]])
-            if geojson_geom.get("type") == "Polygon":
-                return [[[c[1], c[0]] for c in ring] for ring in coords]
-            return coords
-
-        all_lats = []
-        all_lngs = []
-
-        # Reference boundary (blue)
-        ref_coords = geojson_to_folium_coords(reference_geojson)
-        if ref_coords and ref_coords[0]:
-            folium.Polygon(
-                locations=ref_coords[0],
-                color="#3b82f6", weight=3, fill=True, fill_color="#3b82f6",
-                fill_opacity=0.15, popup="Reference (Allotted)", tooltip="📋 Reference Boundary"
-            ).add_to(overlay_map)
-            for pt in ref_coords[0]:
-                all_lats.append(pt[0]); all_lngs.append(pt[1])
-
-        # Current boundary (orange)
-        cur_coords = geojson_to_folium_coords(current_geojson)
-        if cur_coords and cur_coords[0]:
-            folium.Polygon(
-                locations=cur_coords[0],
-                color="#f97316", weight=3, fill=True, fill_color="#f97316",
-                fill_opacity=0.1, dash_array="8", popup="Current (Survey)", tooltip="📤 Current Boundary"
-            ).add_to(overlay_map)
-            for pt in cur_coords[0]:
-                all_lats.append(pt[0]); all_lngs.append(pt[1])
-
-        # Encroachment zone (red)
-        enc_geojson = compare_data.get("encroachment_geojson")
-        if enc_geojson and enc > 0:
-            folium.GeoJson(
-                enc_geojson,
-                style_function=lambda x: {
-                    "fillColor": "#ef4444", "color": "#ef4444",
-                    "weight": 2, "fillOpacity": 0.45
-                },
-                tooltip="🔴 Encroachment Zone"
-            ).add_to(overlay_map)
-
-        # Unused zone (yellow)
-        unused_geojson = compare_data.get("unused_geojson")
-        if unused_geojson and unused > 0:
-            folium.GeoJson(
-                unused_geojson,
-                style_function=lambda x: {
-                    "fillColor": "#eab308", "color": "#eab308",
-                    "weight": 2, "fillOpacity": 0.4
-                },
-                tooltip="🟡 Unused Zone"
-            ).add_to(overlay_map)
-
-        # Overlap zone (green)
-        overlap_geojson = compare_data.get("overlap_geojson")
-        if overlap_geojson:
-            folium.GeoJson(
-                overlap_geojson,
-                style_function=lambda x: {
-                    "fillColor": "#22c55e", "color": "#22c55e",
-                    "weight": 1, "fillOpacity": 0.25
-                },
-                tooltip="🟢 Compliant Overlap"
-            ).add_to(overlay_map)
-
-        # Auto-zoom to fit boundaries
-        if all_lats and all_lngs:
-            overlay_map.fit_bounds([[min(all_lats), min(all_lngs)], [max(all_lats), max(all_lngs)]])
-
-        st_folium(overlay_map, width=None, height=500, key="boundary_overlay")
-
-        # Legend
-        st.markdown("""
-        <div style="display:flex; gap:20px; flex-wrap:wrap; padding:10px 0;">
-            <span style="color:#e2e8f0; font-size:12px;">
-                <span style="display:inline-block; width:14px; height:14px; background:#3b82f6; border-radius:3px; vertical-align:middle; margin-right:4px;"></span> Reference (Allotted)
-            </span>
-            <span style="color:#e2e8f0; font-size:12px;">
-                <span style="display:inline-block; width:14px; height:14px; background:#f97316; border-radius:3px; vertical-align:middle; margin-right:4px;"></span> Current (Survey)
-            </span>
-            <span style="color:#e2e8f0; font-size:12px;">
-                <span style="display:inline-block; width:14px; height:14px; background:#ef4444; border-radius:3px; vertical-align:middle; margin-right:4px;"></span> Encroachment
-            </span>
-            <span style="color:#e2e8f0; font-size:12px;">
-                <span style="display:inline-block; width:14px; height:14px; background:#eab308; border-radius:3px; vertical-align:middle; margin-right:4px;"></span> Unused
-            </span>
-            <span style="color:#e2e8f0; font-size:12px;">
-                <span style="display:inline-block; width:14px; height:14px; background:#22c55e; border-radius:3px; vertical-align:middle; margin-right:4px;"></span> Compliant
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
 
         # Determine status
         if enc > 0:
@@ -1180,6 +1098,16 @@ elif page == "🔍 Single Plot Comparison":
             status = "Compliant"
 
         # Store the result centrally
+        # Compute centroid from reference boundary for map positioning
+        try:
+            ref_shape = shape(reference_geojson)
+            centroid = ref_shape.centroid
+            plot_lat = round(centroid.y, 6)
+            plot_lon = round(centroid.x, 6)
+        except Exception:
+            plot_lat = round(21.25 + random.uniform(-0.05, 0.05), 6)
+            plot_lon = round(81.63 + random.uniform(-0.05, 0.05), 6)
+
         plot_record = {
             "Plot ID": f"P-{len(st.session_state.plots_data)+1}",
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1190,8 +1118,9 @@ elif page == "🔍 Single Plot Comparison":
             "Revenue Loss": loss,
             "Risk Score": risk_score,
             "Status": status,
-            "Lat": round(21.25 + random.uniform(-0.05, 0.05), 6),
-            "Lon": round(81.63 + random.uniform(-0.05, 0.05), 6),
+            "Lat": plot_lat,
+            "Lon": plot_lon,
+            "reference_geojson": reference_geojson,
         }
 
         st.session_state.plots_data.append(plot_record)
